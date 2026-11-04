@@ -1,0 +1,1 @@
+export const JOB_OFFER_REPOSITORY = Symbol('JOB_OFFER_REPOSITORY');

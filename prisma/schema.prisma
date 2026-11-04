@@ -1,0 +1,63 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id         Int        @id @default(autoincrement())
+  name       String
+  careersUrl String?
+  websiteUrl String?
+  sourceType String?
+  isActive   Boolean    @default(true)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  offers     JobOffer[]
+}
+
+model JobOffer {
+  id              Int       @id @default(autoincrement())
+  title           String
+  description     String?   @db.Text
+  location        String?
+  contractType    String?
+  experienceLevel String?
+  remotePolicy    String?
+  salaryMin       Int?
+  salaryMax       Int?
+  currency        String    @default("EUR")
+  url             String    @unique
+  publishedAt     DateTime?
+  discoveredAt    DateTime  @default(now())
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  companyId Int
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model SearchPreferences {
+  id               Int      @id @default(autoincrement())
+  name             String   @default("Ma recherche")
+  locations        String[]
+  contractTypes    String[]
+  experienceLevels String[]
+  remotePolicies   String[]
+  keywords         String[]
+  excludedKeywords String[]
+  frequencyHours   Int      @default(24)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
