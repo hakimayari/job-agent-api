@@ -128,52 +128,79 @@ export class TavilyCompanyDiscoveryProvider implements CompanyDiscoveryProvider 
     return (await response.json()) as TavilySearchResponse;
   }
 
-  private extractCandidates(
-    results: TavilySearchResult[],
-  ): Array<{ name: string; careersUrl: string }> {
-    const candidates = new Map<string, { name: string; careersUrl: string }>();
+private extractCandidates(
+  results: TavilySearchResult[],
+): Array<{ name: string; careersUrl: string }> {
+  const candidates = new Map<string, { name: string; careersUrl: string }>();
 
-    for (const result of results) {
-      if (!this.isLikelyCareerPage(result)) {
-        continue;
-      }
+  const normalize = (value: string): string =>
+    value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
 
-      let url: URL;
-
-      try {
-        url = new URL(result.url);
-      } catch {
-        continue;
-      }
-
-      if (url.protocol !== 'https:' && url.protocol !== 'http:') {
-        continue;
-      }
-
-      const hostname = url.hostname.toLowerCase();
-
-      if (this.isExcludedDomain(hostname)) {
-        continue;
-      }
-
-      const name = this.extractCompanyName(result.title, hostname);
-
-      if (!name) {
-        continue;
-      }
-
-      const key = name.toLowerCase().trim();
-
-      if (!candidates.has(key)) {
-        candidates.set(key, {
-          name,
-          careersUrl: result.url,
-        });
-      }
+  for (const result of results) {
+    if (!this.isLikelyCareerPage(result)) {
+      continue;
     }
 
-    return Array.from(candidates.values());
+    let url: URL;
+
+    try {
+      url = new URL(result.url);
+    } catch {
+      continue;
+    }
+
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+      continue;
+    }
+
+    const hostname = url.hostname.toLowerCase();
+
+    if (this.isExcludedDomain(hostname)) {
+      continue;
+    }
+
+    const name = this.extractCompanyName(result.title, hostname);
+
+    if (!name) {
+      continue;
+    }
+
+    // Vérifier que le nom de l'entreprise correspond au domaine.
+    const normalizedName = normalize(name);
+
+    const domainLabels = hostname
+      .replace(/^www\./, '')
+      .split('.')
+      .slice(0, -1)
+      .map(normalize);
+
+    const hasMatchingDomainLabel = domainLabels.some(
+      (label) =>
+        label.length >= 4 &&
+        (normalizedName.includes(label) ||
+          label.includes(normalizedName)),
+    );
+
+    if (!hasMatchingDomainLabel) {
+      continue;
+    }
+
+    const key = normalizedName;
+
+    if (!candidates.has(key)) {
+      candidates.set(key, {
+        name,
+        careersUrl: result.url,
+      });
+    }
   }
+
+  return Array.from(candidates.values());
+}
 
   private async findOfficialWebsite(
     companyName: string,

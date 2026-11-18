@@ -450,6 +450,43 @@ it('ne doit pas associer deux entreprises différentes ayant la même extension 
   expect(fetchMock).toHaveBeenCalledTimes(5);
 });
 
+it('ne doit pas associer une entreprise à un domaine tiers sans lien avec son identité', async () => {
+  const tavilyResponses = [
+    {
+      results: [
+        {
+          title: 'Crédit Agricole Technologies et Services - Careers',
+          url: 'https://activateurdeprogres.fr/careers/',
+          content: 'Découvrez les opportunités chez Crédit Agricole Technologies et Services.',
+        },
+      ],
+    },
+    { results: [] },
+    { results: [] },
+    { results: [] },
+  ];
+
+  const fetchMock = jest
+    .spyOn(global, 'fetch')
+    .mockImplementation(async () => {
+      const response = tavilyResponses.shift() ?? { results: [] };
+
+      return {
+        ok: true,
+        json: async () => response,
+      } as Response;
+    });
+
+  const result = await provider.discover({
+    keywords: ['développeur TypeScript'],
+    location: 'Lyon',
+  });
+
+  expect(result).toEqual([]);
+  expect(fetchMock).toHaveBeenCalledTimes(4);
+});
+
+
 
   it('doit extraire le nom lorsque Careers est après le nom de l’entreprise', async () => {
     const tavilyResponses = [
