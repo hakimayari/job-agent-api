@@ -128,79 +128,79 @@ export class TavilyCompanyDiscoveryProvider implements CompanyDiscoveryProvider 
     return (await response.json()) as TavilySearchResponse;
   }
 
-private extractCandidates(
-  results: TavilySearchResult[],
-): Array<{ name: string; careersUrl: string }> {
-  const candidates = new Map<string, { name: string; careersUrl: string }>();
+  private extractCandidates(
+    results: TavilySearchResult[],
+  ): Array<{ name: string; careersUrl: string }> {
+    const candidates = new Map<string, { name: string; careersUrl: string }>();
 
-  const normalize = (value: string): string =>
-    value
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, '');
+    const normalize = (value: string): string =>
+      value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
 
-  for (const result of results) {
-    if (!this.isLikelyCareerPage(result)) {
-      continue;
+    for (const result of results) {
+      if (!this.isLikelyCareerPage(result)) {
+        continue;
+      }
+
+      let url: URL;
+
+      try {
+        url = new URL(result.url);
+      } catch {
+        continue;
+      }
+
+      if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+        continue;
+      }
+
+      const hostname = url.hostname.toLowerCase();
+
+      if (this.isExcludedDomain(hostname)) {
+        continue;
+      }
+
+      const name = this.extractCompanyName(result.title, hostname);
+
+      if (!name) {
+        continue;
+      }
+
+      // Vérifier que le nom de l'entreprise correspond au domaine.
+      const normalizedName = normalize(name);
+
+      const rootDomain = getDomain(hostname);
+
+      if (!rootDomain) {
+        continue;
+      }
+
+      const companyDomainLabel = normalize(rootDomain.split('.')[0]);
+
+      const hasMatchingDomainLabel =
+        companyDomainLabel.length >= 4 &&
+        (normalizedName.includes(companyDomainLabel) ||
+          companyDomainLabel.includes(normalizedName));
+
+      if (!hasMatchingDomainLabel) {
+        continue;
+      }
+
+      const key = normalizedName;
+
+      if (!candidates.has(key)) {
+        candidates.set(key, {
+          name,
+          careersUrl: result.url,
+        });
+      }
     }
 
-    let url: URL;
-
-    try {
-      url = new URL(result.url);
-    } catch {
-      continue;
-    }
-
-    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
-      continue;
-    }
-
-    const hostname = url.hostname.toLowerCase();
-
-    if (this.isExcludedDomain(hostname)) {
-      continue;
-    }
-
-    const name = this.extractCompanyName(result.title, hostname);
-
-    if (!name) {
-      continue;
-    }
-
-    // Vérifier que le nom de l'entreprise correspond au domaine.
-    const normalizedName = normalize(name);
-
- const rootDomain = getDomain(hostname);
-
-if (!rootDomain) {
-  continue;
-}
-
-const companyDomainLabel = normalize(rootDomain.split('.')[0]);
-
-const hasMatchingDomainLabel =
-  companyDomainLabel.length >= 4 &&
-  (normalizedName.includes(companyDomainLabel) ||
-    companyDomainLabel.includes(normalizedName));
-
-    if (!hasMatchingDomainLabel) {
-      continue;
-    }
-
-    const key = normalizedName;
-
-    if (!candidates.has(key)) {
-      candidates.set(key, {
-        name,
-        careersUrl: result.url,
-      });
-    }
+    return Array.from(candidates.values());
   }
-
-  return Array.from(candidates.values());
-}
 
   private async findOfficialWebsite(
     companyName: string,
@@ -266,12 +266,12 @@ const hasMatchingDomainLabel =
       // Le site officiel doit appartenir au même domaine
       // que la page carrière ou à son domaine parent.
       const careersRootDomain = getDomain(careersHostname);
-const officialRootDomain = getDomain(hostname);
+      const officialRootDomain = getDomain(hostname);
 
-const sameDomain =
-  careersRootDomain !== null &&
-  officialRootDomain !== null &&
-  careersRootDomain === officialRootDomain;
+      const sameDomain =
+        careersRootDomain !== null &&
+        officialRootDomain !== null &&
+        careersRootDomain === officialRootDomain;
 
       if (!sameDomain) {
         continue;
@@ -284,11 +284,11 @@ const sameDomain =
   }
 
   private extractCompanyName(title: string, hostname: string): string {
-    const careerPrefixPattern =
-      /^\s*(careers?|carrières?|jobs?|emplois?)\s*[-|–—]\s*/i;
+   const careerPrefixPattern =
+  /^\s*(careers?|carrières?|jobs?|emplois?)\s*[-–—]\s*/i;
 
-    const careerSuffixPattern =
-      /\s*[-|–—]\s*(careers?|carrières?|jobs?|emplois?)\s*$/i;
+const careerSuffixPattern =
+      /\s*[-–—]\s*(careers?|carrières?|jobs?|emplois?|rejoignez nos équipes|rejoindre nos équipes)\s*$/i;
 
     const cleanedTitle = title
       .replace(careerPrefixPattern, '')
@@ -362,17 +362,17 @@ const sameDomain =
     const title = result.title.toLowerCase();
     const pathname = url.pathname.toLowerCase();
 
-    // Les pages carrière doivent être identifiables par leur titre
-    // ou par leur chemin URL, pas simplement par leur contenu.
-    const careerPattern =
-      /career|carri[eè]re|recrutement|recruitment|jobs?|emploi|talent/i;
-
+    // Exclure les pages éditoriales et les articles.
     const articlePattern =
       /\/(blog|actualites|actualités|news|articles?|ressources|guides?)(\/|$)/i;
 
     if (articlePattern.test(pathname)) {
       return false;
     }
+
+    // Identifier les pages carrière grâce au titre ou à l'URL.
+    const careerPattern =
+      /career|carri[eè]re|recrutement|recruitment|jobs?|emploi|talent|rejoignez|rejoindre|join\s+our\s+team|join\s+us|nos\s+[ée]quipes|our\s+teams/i;
 
     return careerPattern.test(title) || careerPattern.test(pathname);
   }

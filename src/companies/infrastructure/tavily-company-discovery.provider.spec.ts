@@ -522,6 +522,97 @@ it('ne doit pas accepter le nom de l’entreprise uniquement présent dans un so
   expect(fetchMock).toHaveBeenCalledTimes(4);
 });
 
+  it('ne doit pas considérer un article sur les carrières comme une page carrière', async () => {
+  const tavilyResponses = [
+    {
+      results: [
+        {
+          title: 'Careers in Technology: What You Need to Know',
+          url: 'https://example-company.com/careers-advice/technology/',
+          content: 'An article about careers in technology.',
+        },
+      ],
+    },
+    { results: [] },
+    { results: [] },
+    { results: [] },
+  ];
+
+  const fetchMock = jest
+    .spyOn(global, 'fetch')
+    .mockImplementation(async () => {
+      const response = tavilyResponses.shift() ?? { results: [] };
+
+      return {
+        ok: true,
+        json: async () => response,
+      } as Response;
+    });
+
+  const result = await provider.discover({
+    keywords: ['développeur TypeScript'],
+    location: 'Lyon',
+  });
+
+  expect(result).toEqual([]);
+  expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
+  it('doit accepter une page carrière identifiable par son titre même sans mot-clé dans son URL', async () => {
+const tavilyResponses = [
+  // 1. Première recherche de découverte : page carrière
+  {
+    results: [
+      {
+        title: 'Esker - Rejoignez nos équipes',
+        url: 'https://www.esker.com/fr/nous-rejoindre/',
+        content: 'Découvrez nos offres et rejoignez nos équipes.',
+      },
+    ],
+  },
+
+  // 2. Deuxième recherche
+  { results: [] },
+
+  // 3. Troisième recherche
+  { results: [] },
+
+  // 4. Quatrième recherche
+  { results: [] },
+
+  // 5. Recherche du site officiel d'Esker
+  {
+    results: [
+      {
+        title: 'Esker - Site officiel',
+        url: 'https://www.esker.com/',
+        content: 'Site officiel de Esker.',
+      },
+    ],
+  },
+];
+
+  const fetchMock = jest
+    .spyOn(global, 'fetch')
+    .mockImplementation(async () => {
+      const response = tavilyResponses.shift() ?? { results: [] };
+
+      return {
+        ok: true,
+        json: async () => response,
+      } as Response;
+    });
+
+  const result = await provider.discover({
+    keywords: ['développeur TypeScript'],
+    location: 'Lyon',
+  });
+
+  expect(result.length).toBe(1);
+  expect(result[0].name).toBe('Esker');
+  expect(fetchMock).toHaveBeenCalledTimes(5);
+});
+
   it('doit extraire le nom lorsque Careers est après le nom de l’entreprise', async () => {
     const tavilyResponses = [
       {
