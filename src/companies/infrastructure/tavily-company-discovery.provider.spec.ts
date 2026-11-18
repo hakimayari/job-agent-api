@@ -486,7 +486,41 @@ it('ne doit pas associer une entreprise à un domaine tiers sans lien avec son i
   expect(fetchMock).toHaveBeenCalledTimes(4);
 });
 
+it('ne doit pas accepter le nom de l’entreprise uniquement présent dans un sous-domaine tiers', async () => {
+  const tavilyResponses = [
+    {
+      results: [
+        {
+          title: 'Esker - Careers',
+          url: 'https://esker.fake-company.com/careers/',
+          content: 'Découvrez les opportunités chez Esker.',
+        },
+      ],
+    },
+    { results: [] },
+    { results: [] },
+    { results: [] },
+  ];
 
+  const fetchMock = jest
+    .spyOn(global, 'fetch')
+    .mockImplementation(async () => {
+      const response = tavilyResponses.shift() ?? { results: [] };
+
+      return {
+        ok: true,
+        json: async () => response,
+      } as Response;
+    });
+
+  const result = await provider.discover({
+    keywords: ['développeur TypeScript'],
+    location: 'Lyon',
+  });
+
+  expect(result).toEqual([]);
+  expect(fetchMock).toHaveBeenCalledTimes(4);
+});
 
   it('doit extraire le nom lorsque Careers est après le nom de l’entreprise', async () => {
     const tavilyResponses = [

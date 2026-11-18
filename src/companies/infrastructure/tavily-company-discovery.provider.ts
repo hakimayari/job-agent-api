@@ -172,18 +172,18 @@ private extractCandidates(
     // Vérifier que le nom de l'entreprise correspond au domaine.
     const normalizedName = normalize(name);
 
-    const domainLabels = hostname
-      .replace(/^www\./, '')
-      .split('.')
-      .slice(0, -1)
-      .map(normalize);
+ const rootDomain = getDomain(hostname);
 
-    const hasMatchingDomainLabel = domainLabels.some(
-      (label) =>
-        label.length >= 4 &&
-        (normalizedName.includes(label) ||
-          label.includes(normalizedName)),
-    );
+if (!rootDomain) {
+  continue;
+}
+
+const companyDomainLabel = normalize(rootDomain.split('.')[0]);
+
+const hasMatchingDomainLabel =
+  companyDomainLabel.length >= 4 &&
+  (normalizedName.includes(companyDomainLabel) ||
+    companyDomainLabel.includes(normalizedName));
 
     if (!hasMatchingDomainLabel) {
       continue;
